@@ -1100,6 +1100,109 @@ class Level4 extends Pentatonic {   // High score only emitters + ricochet
     }
 }
 
+// TODO These utilize the Level Editor: Replace 'Clear' with 'Hint/Next', test!
+class Level5 extends LevelEditor {   // Each once
+    hint = `Play each note once`;
+
+    constructor() {
+        super({key: 'level5'});
+    }
+
+    completed() {
+        // Set of all collision ids == set of all gameobject ids
+        let allCollisions = Object.values(this.collisions);
+        let collisionIds = Set();
+        for (const projectileCollisions in allCollisions) {
+            projectileCollisions.forEach((x) => collisionIds.add(x[0]));
+        }
+        let allGameObjectIds = Set(this.levelData.map((x) => x.id));
+        let touchedAllOnce = setsEqual(collisionIds, allGameObjectIds);
+        if (touchedAllOnce) {
+            this.hintAndNextLevelButton.on('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+                this.scene.start('level6'); 
+            })
+            this.hintAndNextLevelButton.setText("Next");
+        }
+    }
+}
+
+class Level6 extends LevelEditor {   // Order ascending
+    hint = `Play each note element in ascending order (any pitch)`;
+
+    constructor() {
+        super({key: 'level6'});
+    }
+
+    completed() {
+        // list of all collision types == list of all gameobject types sorted by size ascending
+        let allCollisions = Object.values(this.collisions);
+        let collisionTypes = []
+        for (const projectileCollisions in allCollisions) {
+            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
+        }
+        let orderedAscending = arraysEqual(collisionTypes, [0, 1, 2, 3, 4]);
+        if (orderedAscending) {
+            this.hintAndNextLevelButton.on('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+                this.scene.start('level7'); 
+            })
+            this.hintAndNextLevelButton.setText("Next");
+        }
+    }
+}
+
+class Level7 extends LevelEditor {   // Order descending
+    hint = `Play each note element in descending order (any pitch)`;
+
+    constructor() {
+        super({key: 'level7'});
+    }
+
+    completed() {
+        // list of all collision types == list of all gameobject types sorted by size ascending
+        let allCollisions = Object.values(this.collisions);
+        let collisionTypes = []
+        for (const projectileCollisions in allCollisions) {
+            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
+        }
+        let orderedDescending = arraysEqual(collisionTypes, [4, 3, 2, 1, 0]);
+        if (orderedDescending) {
+            this.hintAndNextLevelButton.on('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+                this.scene.start('level8'); 
+            })
+            this.hintAndNextLevelButton.setText("Next");
+        }
+    }
+}
+
+class Level8 extends Pentatonic {   // Play Blowing in the Wind
+    hint = `Play this melody. (Q: How many modes must a man walk down?)`;
+    // TODO show polygons
+    constructor() {
+        super({key: 'level8'});
+    }
+
+    completed() {
+        // list of all collision types == list of all gameobject types sorted by size ascending
+        let allCollisions = Object.values(this.collisions);
+        let collisionTypes = []
+        for (const projectileCollisions in allCollisions) {
+            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
+        }
+        let playedMelody = arraysEqual(collisionTypes, [3, 3, 3, 4, 4, 4, 3, 2, 1, 0]);
+        if (playedMelody) {
+            this.hintAndNextLevelButton.on('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+                this.scene.start('complete'); 
+            })
+            this.hintAndNextLevelButton.setText("Next");
+        }
+    }
+}
+
+
 class TitleScreen extends Phaser.Scene {
 
     constructor() {
@@ -1356,104 +1459,3 @@ let highScores = {
     editor: {bestScore: 0, completed: false}
 }
 
-// TODO These utilize the Level Editor: Replace 'Clear' with 'Hint/Next', test!
-class Level5 extends LevelEditor {   // Each once
-    hint = `Play each note once`;
-
-    constructor() {
-        super({key: 'level5'});
-    }
-
-    completed() {
-        // Set of all collision ids == set of all gameobject ids
-        let allCollisions = Object.values(this.collisions);
-        let collisionIds = Set();
-        for (const projectileCollisions in allCollisions) {
-            projectileCollisions.forEach((x) => collisionIds.add(x[0]));
-        }
-        let allGameObjectIds = Set(this.levelData.map((x) => x.id));
-        let touchedAllOnce = setsEqual(collisionIds, allGameObjectIds);
-        if (touchedAllOnce) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('level6'); 
-            })
-            this.hintAndNextLevelButton.setText("Next");
-        }
-    }
-}
-
-class Level6 extends LevelEditor {   // Order ascending
-    hint = `Play each note element in ascending order (any pitch)`;
-
-    constructor() {
-        super({key: 'level6'});
-    }
-
-    completed() {
-        // list of all collision types == list of all gameobject types sorted by size ascending
-        let allCollisions = Object.values(this.collisions);
-        let collisionTypes = []
-        for (const projectileCollisions in allCollisions) {
-            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
-        }
-        let orderedAscending = arraysEqual(collisionTypes, [0, 1, 2, 3, 4]);
-        if (orderedAscending) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('level7'); 
-            })
-            this.hintAndNextLevelButton.setText("Next");
-        }
-    }
-}
-
-class Level7 extends LevelEditor {   // Order descending
-    hint = `Play each note element in descending order (any pitch)`;
-
-    constructor() {
-        super({key: 'level7'});
-    }
-
-    completed() {
-        // list of all collision types == list of all gameobject types sorted by size ascending
-        let allCollisions = Object.values(this.collisions);
-        let collisionTypes = []
-        for (const projectileCollisions in allCollisions) {
-            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
-        }
-        let orderedDescending = arraysEqual(collisionTypes, [4, 3, 2, 1, 0]);
-        if (orderedDescending) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('level8'); 
-            })
-            this.hintAndNextLevelButton.setText("Next");
-        }
-    }
-}
-
-class Level8 extends Pentatonic {   // Play Blowing in the Wind
-    hint = `Play this melody. (Q: How many modes must a man walk down?)`;
-    // TODO show polygons
-    constructor() {
-        super({key: 'level8'});
-    }
-
-    completed() {
-        // list of all collision types == list of all gameobject types sorted by size ascending
-        let allCollisions = Object.values(this.collisions);
-        let collisionTypes = []
-        for (const projectileCollisions in allCollisions) {
-            projectileCollisions.forEach((x) => collisionTypes.push(x[1]));
-        }
-        let playedMelody = arraysEqual(collisionTypes, [3, 3, 3, 4, 4, 4, 3, 2, 1, 0]);
-        if (playedMelody) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('complete'); 
-            })
-            this.hintAndNextLevelButton.setText("Next");
-        }
-    }
-}
