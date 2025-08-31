@@ -1,14 +1,10 @@
 // TODO
-    // I think the rotation/angle distinction was fucked up in DebugLevelEditor, re-do with 'angle' (now fixed)
-    // Narrower triangle
+    // Level design + debug
 
 // FINISHERS
-    // mobile shift key?
     // Change pointer functions to drag functions
+    // mobile shift key?
     // Move projectile update() code to collision with bounds
-    // Cool title screen with random bouncing ball
-    // random button
-    // widen to 1200 px
 
 class Pentatonic extends Phaser.Scene {
     emitters = [];
@@ -17,12 +13,9 @@ class Pentatonic extends Phaser.Scene {
     levelData;
     cursors;
     score = 0;
-    bestScore = highScores[this.sys.key].bestScore;
     shiftDown = false;
     uiLayer;
     synthLayer;
-
-    completed = highScores[this.sys.key].completed;
 
     tempoText;
     scoreText;
@@ -30,6 +23,8 @@ class Pentatonic extends Phaser.Scene {
 
     hintAndNextLevelButton;
     hintText = '';
+
+    sceneKey;
 
     // Every time we register a collision:
     // collisions[projectile.id].push((collider.id, collider.type))
@@ -43,15 +38,36 @@ class Pentatonic extends Phaser.Scene {
 
     constructor(key) {
         super(key);
+        this.sceneKey = key.key;
     }
 
     create() {
+
+        // DEBUG
+        console.log("World create " + this.sceneKey);
+        console.log("Level data");
+        console.log(this.levelData);
+        console.log("Emitters");
+        console.log(this.emitters);
+    
         this.matter.world.disableGravity();
         this.matter.pause();
+
+        this.bestScore = highScores[this.sceneKey].bestScore;
+        this.levelComplete = highScores[this.sceneKey].levelComplete;
         
         // Create all objects + draw menu
-        for (const data of this.levelData) { 
-            this.drawItem(data);
+        for (const data of this.levelData) {
+            try {   // DEBUG
+                this.drawItem(data);
+            } catch (err) {
+                console.log("Problem building from level data")
+                console.log("All level data:")
+                console.log(this.levelData);
+                console.log("problem data:");
+                console.log(data);
+
+            }
         }
 
         const line = this.add.line(0, 0, 0, 800, 1600, 800, 0xffffff, 1.0); // x, y, x1, y1, x2, y2, color
@@ -65,8 +81,18 @@ class Pentatonic extends Phaser.Scene {
 
         this.matter.resume();
         for (const emitter of this.emitters) {
+            try {   // DEBUG
             this.emitProjectile(emitter);
+            } catch (err) {
+                console.log("Problem emitting from emitter")
+                console.log("All emitters:")
+                console.log(this.emitters);
+                console.log("problem emitter:");
+                console.log(emitter);
+            }
         }
+
+        this.completed();
     }
 
     update() {
@@ -96,6 +122,12 @@ class Pentatonic extends Phaser.Scene {
 
     completed() {
         // Override me! Called at the end of projectileScore()
+    }
+
+    clearLevel() {
+        this.emitters = [];
+        this.projectiles = [];
+        this.levelData = [];
     }
 
     projectileScore(id) {
@@ -266,8 +298,9 @@ class Pentatonic extends Phaser.Scene {
 
         const mainMenuButton = this.add.text(263, 825, 'Quit', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(mainMenuButton);
-        mainMenuButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
-            highScores[this.sys.key] = {bestScore: this.bestScore, completed: this.completed};
+        mainMenuButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+            this.clearLevel();
             this.scene.start('title');
         });
 
@@ -332,7 +365,8 @@ class Pentatonic extends Phaser.Scene {
 
         this.hintAndNextLevelButton = this.add.text(700, 850, 'Hint', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUITogglePop(this.hintAndNextLevelButton);
-        this.hintAndNextLevelButton.on('pointerdown', () => { 
+        this.hintAndNextLevelButton.on('pointerdown', () => {
+            
             this.uiLayer.forEach((x) => x.visible = false);
             this.synthLayer.forEach((x) => x.visible = false);
             this.synthKnobs.forEach((x) => x.knob.visible = false);
@@ -343,6 +377,7 @@ class Pentatonic extends Phaser.Scene {
         });
 
         this.hintText = this.add.text(100, 825, this.hint, { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        this.hintText.visible = false;
 
         this.uiLayer = [pauseButton, startButton, resetButton, mainMenuButton, keyLabel, majorMinorButton, tempoLabel, tempoDownButton, this.tempoText, tempoUpButton, scoreLabel, this.scoreText, bestScoreLabel, this.bestScoreText];
         
@@ -475,8 +510,8 @@ class LevelEditor extends Pentatonic {
     large;
     noteText;
 
-    constructor() {
-        super({key: 'editor'});
+    constructor(sceneKey = {key: 'editor'}) {
+        super(sceneKey);
     }
 
     drawUI() {
@@ -503,8 +538,9 @@ class LevelEditor extends Pentatonic {
 
         const mainMenuButton = this.add.text(263, 825, 'Quit', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(mainMenuButton);
-        mainMenuButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
-            highScores[this.sys.key] = {bestScore: this.bestScore, completed: this.completed};
+        mainMenuButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+            this.clearLevel();
             this.scene.start('title');
         });
 
@@ -589,6 +625,7 @@ class LevelEditor extends Pentatonic {
             addShapes.setBackgroundColor('red');
         });
 
+        /*      NOTE This could be added back
         const clearButton = this.add.text(700, 875, 'Clear', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(clearButton);
         clearButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
@@ -604,6 +641,33 @@ class LevelEditor extends Pentatonic {
                 this.returnToActiveMenus();
             }
         });
+        */
+
+        /*      NOTE This could be added?
+        const randomButton = this.add.text(700, 875, 'Random', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(randomButton);
+        randomButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+            for (const x of this.levelData) {
+                this.destroy(x);
+            }
+            this.levelData = [];
+            this.emitters = [];
+            this.projectiles = [];
+            if (this.shapeEditorActive) {
+                this.shapeEditorActive = false;
+                this.shapeEditor.forEach(btn => btn.visible = false);
+                this.returnToActiveMenus();
+            }
+            this.levelData = createRandomData();
+            for (const data of levelData) {
+                this.drawPolygon(data);
+            }
+            for (const emitter of emitters) {
+                this.emitProjectile(emitter);
+            }
+        });
+        */
+
 
         this.uiLayer = [pauseButton, startButton, resetButton, mainMenuButton, keyLabel, majorMinorButton, tempoLabel, tempoDownButton, this.tempoText, tempoUpButton, scoreLabel, this.scoreText, bestScoreLabel, this.bestScoreText];
 
@@ -852,6 +916,7 @@ class DebugLevelEditor extends LevelEditor {
     }
     
     saveLevel() {
+        Tone.start();
         console.log("LEVEL DATA");
         console.log("\n\n=====================\n\n");
         this.levelData.forEach((x) => {
@@ -881,8 +946,9 @@ class Level0 extends Pentatonic {   // Intro
     create() {
         super.create();
         // TODO Write intro text
-        this.hintAndNextLevelButton.on('pointerdown', () => { 
-            highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+        this.hintAndNextLevelButton.once('pointerdown', () => { 
+            highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+            this.clearLevel();
             this.scene.start('level1'); 
         })
         this.hintAndNextLevelButton.setText("Next");
@@ -913,9 +979,10 @@ class Level1 extends Pentatonic {   // High score one emitter
     }
 
     completed() {
-        if (this.bestScore >= this.pointTarget || this.completed) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+        if (this.bestScore >= this.pointTarget || this.levelComplete) {
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('level2'); 
             })
             this.hintAndNextLevelButton.setText("Next");
@@ -927,8 +994,8 @@ class Level2 extends Pentatonic {   // High score three emitters
     pointTarget = 750;
     hint = `Score ${this.pointTarget} points`;
     levelData = [
-        {'type': 0, 'x': 337, 'y': 423, 'size': 50, 'orientation': -2.094395102393195},
-        {'type': 0, 'x': 437, 'y': 423, 'size': 50, 'orientation': 2.094395102393195},
+        {'type': 0, 'x': 337, 'y': 423, 'size': 50, 'orientation': 0},
+        {'type': 0, 'x': 437, 'y': 423, 'size': 50, 'orientation': 0},
         {'type': 0, 'x': 388, 'y': 337, 'size': 50, 'orientation': 0},
         {'type': 2, 'x': 24, 'y': 640, 'size': 50, 'orientation': 0},
         {'type': 4, 'x': 173, 'y': 742, 'size': 50, 'orientation': 0},
@@ -936,7 +1003,7 @@ class Level2 extends Pentatonic {   // High score three emitters
         {'type': 3, 'x': 652, 'y': 63, 'size': 25, 'orientation': 0},
         {'type': 4, 'x': 756, 'y': 131, 'size': 25, 'orientation': 0},
         {'type': 1, 'x': 704, 'y': 25, 'size': 25, 'orientation': 0},
-        {'type': 2, 'x': 538, 'y': 53, 'size': 50, 'orientation': 0.8726646259971638},
+        {'type': 2, 'x': 538, 'y': 53, 'size': 50, 'orientation': 0},
         {'type': 3, 'x': 758, 'y': 69, 'size': 25, 'orientation': 0},
         {'type': 2, 'x': 109, 'y': 111, 'size': 100, 'orientation': 0},
         {'type': 1, 'x': 38, 'y': 240, 'size': 25, 'orientation': 0},
@@ -952,11 +1019,12 @@ class Level2 extends Pentatonic {   // High score three emitters
     constructor() {
         super({key: 'level2'});
     }
-    
+
     completed() {
-        if (this.bestScore >= this.pointTarget || this.completed) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+        if (this.bestScore >= this.pointTarget || this.levelComplete) {
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('level3'); 
             })
             this.hintAndNextLevelButton.setText("Next");
@@ -968,25 +1036,26 @@ class Level3 extends Pentatonic {   // High score three emitters ricochet
     pointTarget = 1000;
     hint = `Score ${this.pointTarget} points after projectile ricochet`;
     levelData = [
-        {'type': 2, 'x': 416, 'y': 43, 'size': 50, 'orientation': 0},
-        {'type': 1, 'x': 207, 'y': 69, 'size': 50, 'orientation': 0.4363323129985819},
-        {'type': 2, 'x': 748, 'y': 163, 'size': 50, 'orientation': -0.4363323129985819},
-        {'type': 3, 'x': 602, 'y': 60, 'size': 50, 'orientation': 0},
-        {'type': 4, 'x': 62, 'y': 171, 'size': 50, 'orientation': 0},
-        {'type': 1, 'x': 511, 'y': 35, 'size': 25, 'orientation': 0.7853981633974492},
-        {'type': 4, 'x': 704, 'y': 65, 'size': 25, 'orientation': 0},
-        {'type': 4, 'x': 302, 'y': 40, 'size': 25, 'orientation': 0},
-        {'type': 4, 'x': 768, 'y': 532, 'size': 100, 'orientation': 0},
-        {'type': 3, 'x': 405, 'y': 717, 'size': 50, 'orientation': -0.5235987755982983},
-        {'type': 2, 'x': 677, 'y': 707, 'size': 50, 'orientation': 0},
-        {'type': 1, 'x': 650, 'y': 613, 'size': 25, 'orientation': 0.17453292519943275},
-        {'type': 2, 'x': 254, 'y': 744, 'size': 25, 'orientation': 0},
-        {'type': 3, 'x': 58, 'y': 525, 'size': 100, 'orientation': 0},
-        {'type': 1, 'x': 89, 'y': 681, 'size': 25, 'orientation': 0},
-        {'type': 4, 'x': 572, 'y': 743, 'size': 25, 'orientation': 0},
-        {'type': 4, 'x': 167, 'y': 701, 'size': 50, 'orientation': 0},
-        {'type': 0, 'x': 384, 'y': 350, 'size': 50, 'orientation': -1.5707963267948966},
-        {'type': 0, 'x': 453, 'y': 351, 'size': 50, 'orientation': 1.5707963267948966}
+        //{'type': 0, 'x': 337, 'y': 423, 'size': 50, 'orientation': 0},
+        //{'type': 0, 'x': 437, 'y': 423, 'size': 50, 'orientation': 0},
+        //{'type': 0, 'x': 388, 'y': 337, 'size': 50, 'orientation': 0},
+        {'type': 2, 'x': 24, 'y': 640, 'size': 50, 'orientation': 0},
+        {'type': 4, 'x': 173, 'y': 742, 'size': 50, 'orientation': 0},
+        {'type': 1, 'x': 65, 'y': 740, 'size': 50, 'orientation': 0},
+        {'type': 3, 'x': 652, 'y': 63, 'size': 25, 'orientation': 0},
+        {'type': 4, 'x': 756, 'y': 131, 'size': 25, 'orientation': 0},
+        {'type': 1, 'x': 704, 'y': 25, 'size': 25, 'orientation': 0},
+        {'type': 2, 'x': 538, 'y': 53, 'size': 50, 'orientation': 0},
+        {'type': 3, 'x': 758, 'y': 69, 'size': 25, 'orientation': 0},
+        {'type': 2, 'x': 109, 'y': 111, 'size': 100, 'orientation': 0},
+        {'type': 1, 'x': 38, 'y': 240, 'size': 25, 'orientation': 0},
+        {'type': 3, 'x': 263, 'y': 125, 'size': 25, 'orientation': 0},
+        {'type': 2, 'x': 243, 'y': 42, 'size': 25, 'orientation': 0},
+        {'type': 4, 'x': 84, 'y': 299, 'size': 25, 'orientation': 0},
+        {'type': 3, 'x': 33, 'y': 354, 'size': 25, 'orientation': 0},
+        {'type': 3, 'x': 718, 'y': 674, 'size': 100, 'orientation': 0},
+        {'type': 4, 'x': 739, 'y': 536, 'size': 25, 'orientation': 0},
+        {'type': 2, 'x': 574, 'y': 729, 'size': 25, 'orientation': 0}
     ]
     constructor() {
         super({key: 'level3'});
@@ -1032,10 +1101,11 @@ class Level3 extends Pentatonic {   // High score three emitters ricochet
     }
 
     completed() {
-        if (this.bestScore >= this.pointTarget || this.completed) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('level8'); 
+        if (this.bestScore >= this.pointTarget || this.levelComplete) {
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
+                this.scene.start('level4'); 
             })
             this.hintAndNextLevelButton.setText("Next");
         }
@@ -1043,8 +1113,9 @@ class Level3 extends Pentatonic {   // High score three emitters ricochet
 }
 
 class Level4 extends Pentatonic {   // High score only emitters + ricochet
-    pointTarget = 500;
+    pointTarget = 300;
     hint = `Score ${this.pointTarget} points only using emitters + ricochet; other notes cancel projectile score`;
+    levelData = [];
     constructor() {
         super({key: 'level4'});
     }
@@ -1090,36 +1161,288 @@ class Level4 extends Pentatonic {   // High score only emitters + ricochet
     }
 
     completed() {
-        if (this.bestScore >= this.pointTarget || this.completed) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
-                this.scene.start('complete'); 
+        if (this.bestScore >= this.pointTarget || this.levelComplete) {
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
+                this.scene.start('level5'); 
             })
             this.hintAndNextLevelButton.setText("Next");
         }
     }
 }
 
-// TODO These utilize the Level Editor: Replace 'Clear' with 'Hint/Next', test!
+// These utilize the Level Editor, all should inherit from Level5
 class Level5 extends LevelEditor {   // Each once
     hint = `Play each note once`;
 
-    constructor() {
-        super({key: 'level5'});
+    levelData = [];
+    constructor(key = {key: 'level5'}) {
+        super(key);
+    }
+
+    drawUI() {  // Level editor w/ hintAndNextLevelButton instead of Clear
+        const pauseButton = this.add.text(50, 825, 'Pause', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(pauseButton);
+        pauseButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.matter.pause() );
+
+        const startButton = this.add.text(118, 825, 'Resume', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(startButton);
+        startButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.matter.resume() );
+
+        const resetButton = this.add.text(200, 825, 'Reset', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(resetButton);
+        resetButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+            // Clear all projectiles + refire
+            for (const projectile of this.projectiles) {
+                this.destroy(projectile);
+            }
+            this.projectiles = [];
+            for (const emitter of this.emitters) {
+                this.emitProjectile(emitter);
+            }
+        });
+
+        const mainMenuButton = this.add.text(263, 825, 'Quit', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(mainMenuButton);
+        mainMenuButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+            this.clearLevel();
+            this.scene.start('title');
+        });
+
+        const keyLabel = this.add.text(355, 800, 'Key', { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        const majorMinorButton = this.add.text(350, 825, 'Major', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(majorMinorButton);
+        majorMinorButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+            if (key === majorKey) {
+                key = minorKey;
+                majorMinorButton.text = "Minor";
+            } else {
+                key = majorKey;
+                majorMinorButton.text = "Major";
+            }
+        });
+
+        const tempoLabel = this.add.text(460, 800, 'Velocity', { fontFamily: fontFamily,color: 'white', backgroundColor: 'black', padding: 2 });
+        const tempoDownButton = this.add.text(455, 825, '<', { fontFamily: fontFamily,color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(tempoDownButton);
+        tempoDownButton.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            velocity = Math.max(velocity - 1, 0); 
+            this.tempoText.setText(`${velocity}`);
+        });
+
+        this.tempoText = this.add.text(477, 825, `${velocity}`, { fontFamily: fontFamily,color: 'white', backgroundColor: 'black' });
+
+        const tempoUpButton = this.add.text(505, 825, '>', {fontFamily: fontFamily,color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(tempoUpButton);
+        tempoUpButton.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            velocity = Math.min(velocity + 1, 30); 
+            this.tempoText.setText(`${velocity}`);
+        });
+
+        const scoreLabel = this.add.text(575, 805, 'Score:', { fontFamily: fontFamily,color: 'white', backgroundColor: 'black', padding: 2 });
+        this.scoreText = this.add.text(635, 805, `${this.score}`, { fontFamily: fontFamily,color: 'white', backgroundColor: 'black', padding: 2 });
+        const bestScoreLabel = this.add.text(575, 830, 'Best:', { fontFamily: fontFamily,color: 'white', backgroundColor: 'black', padding: 2 });
+        this.bestScoreText = this.add.text(635, 830, `${this.bestScore}`, { fontFamily: fontFamily,color: 'white', backgroundColor: 'black', padding: 2 });
+
+        const mainUI = this.add.text(700, 800, 'Main', {fontFamily: fontFamily, color: 'black', backgroundColor: 'red', padding: 2});
+        this.makeUITogglePop(mainUI);
+        mainUI.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            this.uiLayer.forEach(btn => btn.visible = true);
+            this.synthLayer.forEach(btn => btn.visible = false);
+            this.synthKnobs.forEach(ctrl => ctrl.knob.visible = false);
+            this.shapeMenu.forEach(btn => btn.visible = false);
+            this.shapeEditor.forEach(btn => btn.visible = false);
+            this.activeMenus = [this.uiLayer];
+            this.shapeEditorActive = false;
+            this.hintText.visible = false;
+            mainUI.setBackgroundColor('red');
+            synthControls.setBackgroundColor('white');
+            addShapes.setBackgroundColor('white');
+            this.hintAndNextLevelButton.setBackgroundColor('white');
+        });
+
+
+        const synthControls = this.add.text(700, 825, 'Synth', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(synthControls);
+        synthControls.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            this.uiLayer.forEach(btn => btn.visible = false);
+            this.synthLayer.forEach(btn => btn.visible = true);
+            this.synthKnobs.forEach(ctrl => ctrl.knob.visible = true);
+            this.shapeMenu.forEach(btn => btn.visible = false);
+            this.shapeEditor.forEach(btn => btn.visible = false);
+            this.activeMenus = [this.synthLayer, this.synthKnobs];
+            this.shapeEditorActive = false;
+            this.hintText.visible = false;
+            mainUI.setBackgroundColor('white');
+            synthControls.setBackgroundColor('red');
+            addShapes.setBackgroundColor('white');
+            this.hintAndNextLevelButton.setBackgroundColor('white');
+        });
+
+        const addShapes = this.add.text(700, 850, 'Shapes', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(addShapes);
+        addShapes.on(Phaser.Input.Events.POINTER_DOWN, () => {
+            this.uiLayer.forEach(btn => btn.visible = false);
+            this.synthLayer.forEach(btn => btn.visible = false);
+            this.synthKnobs.forEach(ctrl => ctrl.knob.visible = false);
+            this.shapeMenu.forEach(btn => btn.visible = true);
+            this.shapeEditor.forEach(btn => btn.visible = false);
+            this.activeMenus = [this.shapeMenu];
+            this.shapeEditorActive = false;
+            this.hintText.visible = false;
+            mainUI.setBackgroundColor('white');
+            synthControls.setBackgroundColor('white');
+            addShapes.setBackgroundColor('red');
+            this.hintAndNextLevelButton.setBackgroundColor('white');
+        });
+
+        this.hintAndNextLevelButton = this.add.text(700, 875, 'Hint', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(this.hintAndNextLevelButton);
+        this.hintAndNextLevelButton.on('pointerdown', () => { 
+            this.uiLayer.forEach(btn => btn.visible = false);
+            this.synthLayer.forEach(btn => btn.visible = false);
+            this.synthKnobs.forEach(ctrl => ctrl.knob.visible = false);
+            this.shapeMenu.forEach(btn => btn.visible = false);
+            this.shapeEditor.forEach(btn => btn.visible = false);
+            this.activeMenus = [this.shapeMenu];
+            this.shapeEditorActive = false;
+            this.hintText.visible = true;
+            mainUI.setBackgroundColor('white');
+            synthControls.setBackgroundColor('white');
+            addShapes.setBackgroundColor('red');
+            this.hintAndNextLevelButton.setBackgroundColor('red');
+        });
+
+        this.hintText = this.add.text(100, 825, this.hint, { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        this.hintText.visible = false;
+
+        this.uiLayer = [pauseButton, startButton, resetButton, mainMenuButton, keyLabel, majorMinorButton, tempoLabel, tempoDownButton, this.tempoText, tempoUpButton, scoreLabel, this.scoreText, bestScoreLabel, this.bestScoreText];
+
+        const monosynthButton = this.add.text(100, 800, 'Analog', {fontFamily: fontFamily, color: 'black', backgroundColor: 'red', padding: 2});
+        this.makeUITogglePop(monosynthButton);
+        monosynthButton.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            audioEngine.changeSynth(audioEngine.monoSynth);
+            monosynthButton.setBackgroundColor('red');
+            synthButton.setBackgroundColor('white');
+            fmsynthButton.setBackgroundColor('white');
+        });
+        
+        const synthButton = this.add.text(100, 825, 'Digital', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(synthButton);
+        synthButton.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            audioEngine.changeSynth(audioEngine.digitalSynth);
+            monosynthButton.setBackgroundColor('white');
+            synthButton.setBackgroundColor('red');
+            fmsynthButton.setBackgroundColor('white');
+        });
+        
+        const fmsynthButton = this.add.text(100, 850, 'FM', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(fmsynthButton);
+        fmsynthButton.on(Phaser.Input.Events.POINTER_DOWN, () => { 
+            audioEngine.changeSynth(audioEngine.fmSynth); 
+            monosynthButton.setBackgroundColor('white');
+            synthButton.setBackgroundColor('white');
+            fmsynthButton.setBackgroundColor('red');
+        });
+
+        //vibrato.frequency, depth
+        const vibratoLabel = this.add.text(220, 800, 'Vibrato', { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        const vibratoFreq = new Knob(this, 225, 840, 20, audioEngine.vibrato, 10.0, {frequency: 0});
+        const vibratoDepth = new Knob(this, 275, 840, 20, audioEngine.vibrato, 1.0, {depth: 0});
+        //chorus.delayTime, depth
+        const chorusLabel = this.add.text(395, 800, 'Chorus', { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        const chorusDelay = new Knob(this, 400, 840, 20, audioEngine.chorus, 5.0, {delayTime: 0});
+        const chorusDepth = new Knob(this, 450, 840, 20, audioEngine.chorus, 2.0, {depth: 0});
+        //delay.delayTime, feeback
+        const delayLabel = this.add.text(575, 800, 'Delay', { fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2 });
+        const delayTime = new Knob(this, 575, 840, 20, audioEngine.feedbackDelay, 1.0, {delayTime: 0});
+        const delayFeedback = new Knob(this, 625, 840, 20, audioEngine.feedbackDelay, 0.8, {feedback: 0});
+
+        this.synthLayer = [monosynthButton, synthButton, fmsynthButton, vibratoLabel, chorusLabel, delayLabel];
+        this.synthKnobs = [vibratoFreq, vibratoDepth, chorusDelay, chorusDepth, delayTime, delayFeedback];
+        this.synthLayer.forEach(btn => btn.visible = false);
+        this.synthKnobs.forEach(ctrl => ctrl.knob.visible = false);
+
+
+        // Editor: Shapes (drag and drop); shape size + delete (on click)
+        const emitter = this.drawPolygon(150, 870, MEDIUM, TRIANGLE, 0, this.getId());
+        this.makeDraggable(emitter);
+        const square = this.drawPolygon(250, 860, MEDIUM, SQUARE, 0, this.getId());
+        this.makeDraggable(square);
+        const pentagon = this.drawPolygon(350, 860, MEDIUM, PENTAGON, 0, this.getId());
+        this.makeDraggable(pentagon);
+        const hexagon = this.drawPolygon(450, 860, MEDIUM, HEXAGON, 0, this.getId());
+        this.makeDraggable(hexagon);
+        const octagon = this.drawPolygon(550, 860, MEDIUM, OCTAGON, 0, this.getId());
+        this.makeDraggable(octagon);
+
+        this.shapeMenu = [emitter, square, pentagon, hexagon, octagon];
+        this.shapeMenu.forEach((x) => x.visible = false);
+
+        const editorLabel = this.add.text(215, 800, 'Size', {fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2});
+        this.small = this.add.text(100, 825, 'Small', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(this.small);
+        this.small.on('pointerdown', () => {
+            this.clickedObject.setScale(0.5, 0.5);
+            this.clickedObject.setData('size', SMALL);
+            this.clickedObject.setData('pitch', 4);
+            this.noteText.setText(key[this.clickedObject.getData('note')] + '4');
+            this.small.setBackgroundColor('red');
+            this.medium.setBackgroundColor('white');
+            this.large.setBackgroundColor('white');
+        });
+        this.medium = this.add.text(200, 825, 'Medium', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(this.medium);
+        this.medium.on('pointerdown', () => {
+            this.clickedObject.setScale(1.0, 1.0);
+            this.clickedObject.setData('size', MEDIUM);
+            this.clickedObject.setData('pitch', 3);
+            this.noteText.setText(key[this.clickedObject.getData('note')] + '3');
+            this.small.setBackgroundColor('white');
+            this.medium.setBackgroundColor('red');
+            this.large.setBackgroundColor('white');
+        });
+        this.large = this.add.text(300, 825, 'Large', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUITogglePop(this.large);
+        this.large.on('pointerdown', () => {
+            this.clickedObject.setScale(2.0, 2.0);
+            this.clickedObject.setData('size', LARGE);
+            this.clickedObject.setData('pitch', 2);
+            this.noteText.setText(key[this.clickedObject.getData('note')] + '2');
+            this.small.setBackgroundColor('white');
+            this.medium.setBackgroundColor('white');
+            this.large.setBackgroundColor('red');
+        });
+        const deleteShapeButton = this.add.text(400, 825, 'Delete', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
+        this.makeUIElementPop(deleteShapeButton);
+        deleteShapeButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+                this.destroy(this.clickedObject);
+                this.shapeEditor.forEach((x) => x.visible = false);
+                this.returnToActiveMenus();
+        });
+        const noteLabel = this.add.text(545, 800, 'Note', {fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2});
+        this.noteText = this.add.text(550, 825, '', {fontFamily: fontFamily, color: 'white', backgroundColor: 'black', padding: 2});
+
+        this.shapeEditor = [this.small, this.medium, this.large, deleteShapeButton, editorLabel, noteLabel, this.noteText];
+        this.shapeEditor.forEach((x) => x.visible = false);
+
     }
 
     completed() {
         // Set of all collision ids == set of all gameobject ids
         let allCollisions = Object.values(this.collisions);
-        let collisionIds = Set();
+        let collisionIds = new Set();
         for (const projectileCollisions in allCollisions) {
             projectileCollisions.forEach((x) => collisionIds.add(x[0]));
         }
-        let allGameObjectIds = Set(this.levelData.map((x) => x.id));
+        let allGameObjectIds = new Set(this.levelData.map((x) => x.id));
         let touchedAllOnce = setsEqual(collisionIds, allGameObjectIds);
         if (touchedAllOnce) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('level6'); 
             })
             this.hintAndNextLevelButton.setText("Next");
@@ -1127,9 +1450,10 @@ class Level5 extends LevelEditor {   // Each once
     }
 }
 
-class Level6 extends LevelEditor {   // Order ascending
+class Level6 extends Level5 {   // Order ascending
     hint = `Play each note element in ascending order (any pitch)`;
 
+    levelData = [];
     constructor() {
         super({key: 'level6'});
     }
@@ -1143,8 +1467,9 @@ class Level6 extends LevelEditor {   // Order ascending
         }
         let orderedAscending = arraysEqual(collisionTypes, [0, 1, 2, 3, 4]);
         if (orderedAscending) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('level7'); 
             })
             this.hintAndNextLevelButton.setText("Next");
@@ -1152,9 +1477,10 @@ class Level6 extends LevelEditor {   // Order ascending
     }
 }
 
-class Level7 extends LevelEditor {   // Order descending
+class Level7 extends Level5 {   // Order descending
     hint = `Play each note element in descending order (any pitch)`;
 
+    levelData = [];
     constructor() {
         super({key: 'level7'});
     }
@@ -1168,8 +1494,9 @@ class Level7 extends LevelEditor {   // Order descending
         }
         let orderedDescending = arraysEqual(collisionTypes, [4, 3, 2, 1, 0]);
         if (orderedDescending) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('level8'); 
             })
             this.hintAndNextLevelButton.setText("Next");
@@ -1177,9 +1504,10 @@ class Level7 extends LevelEditor {   // Order descending
     }
 }
 
-class Level8 extends Pentatonic {   // Play Blowing in the Wind
-    hint = `Play this melody. (Q: How many modes must a man walk down?)`;
+class Level8 extends Level5 {   // Play Blowing in the Wind
+    hint = `Play this melody`;
     // TODO show polygons
+    levelData = [];
     constructor() {
         super({key: 'level8'});
     }
@@ -1193,15 +1521,15 @@ class Level8 extends Pentatonic {   // Play Blowing in the Wind
         }
         let playedMelody = arraysEqual(collisionTypes, [3, 3, 3, 4, 4, 4, 3, 2, 1, 0]);
         if (playedMelody) {
-            this.hintAndNextLevelButton.on('pointerdown', () => { 
-                highScores[this.sys.key] = {bestScore: this.bestScore, completed: true};
+            this.hintAndNextLevelButton.once('pointerdown', () => { 
+                highScores[this.sys.key] = {bestScore: this.bestScore, levelComplete: this.levelComplete};
+                this.clearLevel();
                 this.scene.start('complete'); 
             })
             this.hintAndNextLevelButton.setText("Next");
         }
     }
 }
-
 
 class TitleScreen extends Phaser.Scene {
 
@@ -1213,13 +1541,22 @@ class TitleScreen extends Phaser.Scene {
         this.add.text(350, 400, 'PENTATONIC', { fontSize: '32px', fontFamily: fontFamily, color: 'white' });
         const startGameButton = this.add.text(375, 450, 'Start', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(startGameButton);
-        startGameButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('level0') );
+        startGameButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            Tone.start();
+            this.scene.start('level0')
+        });
         const levelEditorButton = this.add.text(375, 475, 'Create', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(levelEditorButton);
-        levelEditorButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('editor') );
+        levelEditorButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            Tone.start();
+            this.scene.start('editor') 
+        });
         const levelSelectButton = this.add.text(375, 500, 'Select Level', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(levelSelectButton);
-        levelSelectButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('levelselect') );
+        levelSelectButton.once(Phaser.Input.Events.POINTER_DOWN, () => {
+            Tone.start();
+            this.scene.start('levelselect')
+        });
     }
 
     makeUIElementPop(gameObject) {
@@ -1257,33 +1594,30 @@ class Complete extends Phaser.Scene {
         // Calculate total score
         const menuButton = this.add.text(375, 500, 'Return to menu', {fontFamily: fontFamily, color: 'black', backgroundColor: 'white', padding: 2});
         this.makeUIElementPop(menuButton);
-        menuButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('title') );
+        menuButton.once(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('title') );
     }
 }
 
 class Instrument {
     constructor() {
-        this.monoSynth = new Tone.PolySynth(Tone.MonoSynth, {maxPolyphony: 16});
-        this.digitalSynth = new Tone.PolySynth(Tone.Synth, {maxPolyphony: 16});
-        this.fmSynth = new Tone.PolySynth(Tone.FMSynth, {maxPolyphony: 16});
+        this.monoSynth = new Tone.PolySynth(Tone.MonoSynth, {maxPolyphony: 16}).toDestination();
+        this.digitalSynth = new Tone.PolySynth(Tone.Synth, {maxPolyphony: 16}).toDestination();
+        this.fmSynth = new Tone.PolySynth(Tone.FMSynth, {maxPolyphony: 16}).toDestination();
         this.synth = this.monoSynth;
-        this.vibrato = new Tone.Vibrato(0.0, 0.0);
-        this.chorus = new Tone.Chorus(0, 0, 0.0);
         this.feedbackDelay = new Tone.FeedbackDelay(0.0, 0.0);
+        this.vibrato = new Tone.Vibrato(0.0, 0.0);
+        this.chorus = new Tone.Chorus(0, 0, 0.0).toDestination();
 
         // Build the chain
-        this.synth.connect(this.vibrato);
+        this.synth.connect(this.feedbackDelay);
+        this.feedbackDelay.connect(this.vibrato);
         this.vibrato.connect(this.chorus);
-        this.chorus.connect(this.feedbackDelay);
-
-        // Delay output to main out
-        this.feedbackDelay.toDestination();
     }
     changeSynth(newSynth) {
         if (newSynth == this.synth) { return; }
-        this.synth.disconnect(this.vibrato);
+        this.synth.disconnect(this.feedbackDelay);
         this.synth = newSynth;
-        this.synth.connect(this.vibrato);
+        this.synth.connect(this.feedbackDelay);
     }
 }
 
@@ -1331,7 +1665,6 @@ class Knob {
         const normalizedMovement = Math.max(Math.min(movement, 180), 0);
         this.knob.angle = normalizedMovement;
         this.currentValue = normalizedMovement / 180;
-        console.log(this.knob.angle);
         let key = Object.keys(this.settings)[0];
         this.settings[key] = this.currentValue * this.max;
         this.device.set(this.settings);
@@ -1433,6 +1766,7 @@ const config = {
     width: 800,
     height: 900,
     scene: [TitleScreen, Level0, Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, LevelEditor, LevelSelect, Complete],
+    //scene: DebugLevelEditor,
     physics: {
         default: 'matter',
         matter: {
@@ -1447,15 +1781,32 @@ const game = new Phaser.Game(config);
 
 let highScores = {
     // level : {bestScore: 0, completed: false}
-    level0: {bestScore: 0, completed: true},
-    level1: {bestScore: 0, completed: false},
-    level2: {bestScore: 0, completed: false},
-    level3: {bestScore: 0, completed: false},
-    level4: {bestScore: 0, completed: false},
-    level5: {bestScore: 0, completed: false},
-    level6: {bestScore: 0, completed: false},
-    level7: {bestScore: 0, completed: false},
-    level8: {bestScore: 0, completed: false},
-    editor: {bestScore: 0, completed: false}
+    'level0': {bestScore: 0, levelComplete: true},   // DEBUG Note scores, levelComplete settings
+    'level1': {bestScore: 0, levelComplete: true},
+    'level2': {bestScore: 0, levelComplete: true},
+    'level3': {bestScore: 0, levelComplete: true},
+    'level4': {bestScore: 0, levelComplete: true},
+    'level5': {bestScore: 0, levelComplete: true},
+    'level6': {bestScore: 0, levelComplete: true},
+    'level7': {bestScore: 0, levelComplete: true},
+    'level8': {bestScore: 0, levelComplete: true},
+    'editor': {bestScore: 0, levelComplete: false}
 }
 
+function createRandomData() {
+    const randomData = [];
+    numElements = getRandomInt(16) + 2;
+    for (let x = 0; x < numElements; x++) {
+        const x = getRandomInt(750) + 25;
+        const y = getRandomInt(750) + 25;
+        const size = 25 * Math.pow(2, getRandomInt(2));
+        const orientation = getRandomInt(180);
+        const type = getRandomInt(4);
+        randomData.push({'type': type, 'x': x, 'y': y, 'size': size, 'orientation': orientation});
+    }
+    return randomData;
+}
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
